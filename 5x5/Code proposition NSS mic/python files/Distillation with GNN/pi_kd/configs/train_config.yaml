@@ -87,7 +87,11 @@ ckpt_dir: "./checkpoints_pikd"
 qat:
   epochs: 15
   n_calibration: 3        # Phase 1: observers ON, fake_quant OFF
-  n_adapt: 2              # Phase 2: 2 epochs both ON (confirmed working in run A at ep3-4)
+  n_adapt: 12             # Phase 2: covers all remaining epochs — observers never freeze
+  # n_adapt=12 → freeze_epoch=15=epochs → freeze code never triggers within the loop.
+  # Rationale: freeze at ep5 caused 300x loss spike (0.0002→0.0573, AccTop1 0.987→0.772)
+  # because locked ranges diverge from weights still being updated at lr=2e-6.
+  # EMA averaging_constant=0.01 is slow enough that drift over 12 epochs is negligible.
   lr_factor: 0.01         # lr = base_lr * lr_factor = 3e-4 * 0.01 = 3e-6
   cosine_eta_min: 1.0e-7
   ckpt_dir: "./checkpoints_qat"
