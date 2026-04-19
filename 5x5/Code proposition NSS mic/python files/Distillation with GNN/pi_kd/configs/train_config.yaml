@@ -1,0 +1,93 @@
+# PI-KD Training Configuration
+# Physics-Informed Knowledge Distillation for ICS Detection
+
+data:
+  cache_npz: "../data_cache.npz"
+  cache_lists: "../data_cache_lists.pkl"
+  pixel_pitch_mm: [2.0, 2.0]
+
+student:
+  in_ch: 3
+  widths: [32, 64, 64]  # depthwise separable block channels
+
+teacher:
+  checkpoints:
+    - "../checkpoints/best.pt"
+
+distillation:
+  # Temperature annealing: T decays from T_start to T_end (cosine).
+  # For binary sigmoid KD, T must stay low so soft labels retain contrast.
+  # At T=2, teacher logit ±3 → soft label 0.82/0.18 (gap=0.64).
+  # At T=4, same logit → 0.68/0.32 (gap=0.36) — too flat for useful gradients.
+  T_start: 2.0
+  T_end: 1.2
+  temperature: 1.5        # fallback if annealing disabled
+
+  lambda_kd: 0.5          # RATIO: KD contributes 50% of task loss (adaptive normalization in trainer)
+  lambda_phys: 0.1        # RATIO: physics contributes 10% of task loss (adaptive normalization in trainer)
+  physics_mode: ranking   # "ranking" = cosine-sim (coherent), "mse" = legacy MSE (conflicts with BCE)
+  lambda_feat: 0.0        # disabled — see use_feature_matching below
+
+  # Pre/post-MHSA KD split: teacher P1_logits (CNN-only, pre-attention) provide
+  # a more student-compatible target. The KD total is:
+  #   post_mhsa_weight * KD(P_logits) + pre_mhsa_weight * KD(P1_logits)
+  # Set pre_mhsa_weight: 0.0 to disable (baseline behavior).
+  pre_mhsa_weight: 0.3
+  post_mhsa_weight: 0.7
+
+  # Feature matching: OFF by default. Student (DepthwiseSep+ReLU6) and teacher
+  # (Conv2d+BN+ReLU) have incompatible intermediate representations; forcing
+  # alignment via MSE pulls the backbone away from its task-optimal features.
+  # Re-enable with --feat flag for ablation experiments.
+  use_feature_matching: false
+  feature_matching:
+    student_ch: 64
+    teacher_ch: 64
+
+curriculum:
+  num_phases: 2           # 2 = Task -> Task+KD+Phys  |  3 = Task -> +KD -> +KD+Phys (legacy)
+  phase1_frac: 0.50       # task-only phase (first 45 epochs)
+  phase2_frac: 0.50       # (3-phase only) KD-only fraction before physics
+  ramp_epochs: 3          # linear ramp-up within each phase
+
+# ── Ablation study flags (CLI) ──────────────────────────────────────
+# python -m pi_kd.scripts.train                         → full PI-KD (task + KD + physics)
+# python -m pi_kd.scripts.train --no-physics            → task + KD only
+# python -m pi_kd.scripts.train --no-teacher            → task + physics only
+# python -m pi_kd.scripts.train --no-teacher --no-physics → task baseline
+# These flags zero out the corresponding lambdas at runtime.
+
+loss_weights:
+  scatter: 0.15
+  primary: 1.0
+  ics: 0.0
+
+train:
+  batch_size: 1024
+  num_workers: 8
+  epochs: 90
+  lr: 0.0003
+  weight_decay: 0.0001
+  val_split: 0.2
+  seed: 1337
+  early_patience: 30  # = phase length, guarantees all 3 phases complete their full 30 epochs
+  warmup_epochs: 3       # LR ramps linearly from lr/10 to lr over first 3 epochs
+
+mixed_precision: true
+
+ckpt_dir: "./checkpoints_pikd"
+
+# QAT config (post-distillation)
+# n_calibration: epochs where observers collect stats with fake_quant OFF.
+#   Do NOT skip — without calibration, fake_quant applies random quantization
+#   on epoch 0 and destroys the pretrained weights in the first backward pass.
+# lr_factor: keep very small — float weights are converged; QAT only nudges
+#   for INT8 constraints. 0.02 caused collapse; 0.01 is safe.
+# epochs: 15 is enough for a 10K-param model. More risks catastrophic forgetting.
+qat:
+  epochs: 15
+  n_calibration: 3        # Phase 1: observers ON, fake_quant OFF
+  n_adapt: 2              # Phase 2: 2 epochs both ON (confirmed working in run A at ep3-4)
+  lr_factor: 0.01         # lr = base_lr * lr_factor = 3e-4 * 0.01 = 3e-6
+  cosine_eta_min: 1.0e-7
+  ckpt_dir: "./checkpoints_qat"
