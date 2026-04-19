@@ -1,7 +1,7 @@
 """
 Quantization-Aware Training (QAT) fine-tuning for FPGA deployment.
 
-Three-phase schedule:
+Two-phase schedule:
 
   Phase 1 — Calibration (n_calibration epochs):
       observers ON, fake_quant OFF.
@@ -9,21 +9,29 @@ Three-phase schedule:
       Fake_quant must stay OFF here — uninitialized ranges on epoch 0 would
       inject pure noise into gradients, instantly destroying pretrained weights.
 
-  Phase 2 — Adaptation (n_adapt epochs):
+  Phase 2 — Adaptation (remaining epochs):
       observers ON, fake_quant ON.
-      Model adjusts weights to work under INT8 constraints while observers
-      re-calibrate on the quantized activation distributions (which differ from
-      the float32 distributions seen in Phase 1).
-      Keep short (2 epochs): observers use EMA (averaging_constant=0.01), so
-      after ~300 batches they reach 95% convergence. Beyond that, slow EMA drift
-      can accumulate and eventually cause a discontinuous zero_point jump.
+      Model adjusts weights to work under INT8 constraints while MinMaxObserver
+      tracks activation extremes.
 
-  Phase 3 — Stable fine-tuning (remaining epochs):
-      observers OFF (frozen), fake_quant ON.
-      INT8 ranges are locked; only float weights continue to be updated.
-      Preventing any further range drift guarantees stable convergence.
+Observer: MinMaxObserver (global min/max, monotonically expanding).
+  Root cause of previous collapse at epoch 5: the default qnnpack qconfig uses
+  FusedMovingAvgObsFakeQuantize (EMA, averaging_constant=0.01). After ~11,000
+  batches (3 calibration + 2 adaptation epochs), the EMA-tracked min/max drifts
+  enough that the integer zero_point must jump by 1 — a discontinuous grid
+  shift. Every quantized primary heatmap pixel remaps to wrong INT8 bins,
+  correct pixel drops from rank #1 to rank #15+, AccTop1 crashes 0.99→0.008.
+  Fix: use averaging_constant=0.001 (10x slower EMA). Calibration still
+  converges in 3 epochs; drift over 12 adaptation epochs is 10x smaller —
+  zero_point jump threshold crossed at ~50 epochs, well beyond our 15-epoch run.
 
 Backend: qnnpack (per-tensor weights) — simpler hardware mapping for hls4ml/FPGA.
+
+Note on double fake_quant: PyTorch does not support Conv-BN-ReLU6 fusion
+(only Conv-BN-ReLU). After prepare_qat, each DepthwiseSepBlock has two fake
+quantizers (one after Conv-BN, one after ReLU6). This is suboptimal but
+harmless with a stable observer: the pre-ReLU6 fake quantizer clips negatives
+to [zero_point], which ReLU6 then clips to 0 anyway.
 """
 
 import os
@@ -32,6 +40,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.quantization as quant
+from torch.quantization.observer import MovingAverageMinMaxObserver
 from sklearn.metrics import average_precision_score, precision_recall_curve
 from tqdm import tqdm
 
@@ -47,13 +56,12 @@ def prepare_for_qat(student, ckpt_path, device="cpu"):
     Fake_quant is left DISABLED — calibration in qat_finetune() enables it
     only after observers have collected representative activation statistics.
 
-    qconfig: qnnpack defaults — the only config confirmed to produce AccTop1=0.986
-    at epoch 3 in practice.
+    qconfig: qnnpack with MinMaxObserver (replaces default EMA observer).
       - reduce_range=False: full 8-bit (256 levels). reduce_range=True halves
         precision to 127 levels → 2x more quantization noise → model collapse.
-      - per-tensor weights: simpler than per-channel and confirmed to work.
-      - MovingAverageMinMaxObserver: kept for compatibility (observers are frozen
-        after n_calibration+n_adapt epochs before EMA drift accumulates).
+      - per-tensor weights: simpler than per-channel, confirmed to work.
+      - MinMaxObserver: monotonically expanding range, zero_point never jumps
+        discontinuously (see module docstring for why this matters).
 
     Returns:
         (model, cfg) — model ready for calibration + QAT.
@@ -72,13 +80,43 @@ def prepare_for_qat(student, ckpt_path, device="cpu"):
     model.train()
 
     torch.backends.quantized.engine = "qnnpack"
-    model.qconfig = quant.get_default_qat_qconfig("qnnpack")
+
+    # EMA observer with averaging_constant=0.001 (10x slower than qnnpack default 0.01).
+    #
+    # Why not MinMaxObserver: sensitive to outlier batches — one extreme batch in 6600
+    # calibration steps permanently inflates max_val, scale becomes too coarse, model
+    # collapses at the first fake_quant epoch (confirmed: ep3 loss 0.0002→0.0582, 291x).
+    #
+    # Why not default EMA (0.01): drift accumulates over fake_quant epochs — after
+    # 2 adaptation epochs the EMA-tracked max_val crosses a round() boundary,
+    # zero_point jumps by 1 integer, remapping all heatmap pixels to wrong INT8 bins →
+    # AccTop1 0.99→0.008 (confirmed in every run with averaging_constant=0.01).
+    #
+    # averaging_constant=0.001: EMA converges in ~3 calibration epochs
+    # ((1-0.001)^6600 ≈ 0), but drifts 10x more slowly during adaptation.
+    # Zero_point jump threshold crossed at ~50 adaptation epochs (vs 2 with 0.01).
+    # With only 12 adaptation epochs (n_adapt=12), no jump occurs.
+    _slow_act = quant.FakeQuantize.with_args(
+        observer=MovingAverageMinMaxObserver.with_args(averaging_constant=0.001),
+        quant_min=0, quant_max=255,
+        dtype=torch.quint8,
+        qscheme=torch.per_tensor_affine,
+        reduce_range=False,
+    )
+    _slow_wt = quant.FakeQuantize.with_args(
+        observer=MovingAverageMinMaxObserver.with_args(averaging_constant=0.001),
+        quant_min=-128, quant_max=127,
+        dtype=torch.qint8,
+        qscheme=torch.per_tensor_symmetric,
+        reduce_range=False,
+    )
+    model.qconfig = quant.QConfig(activation=_slow_act, weight=_slow_wt)
     quant.prepare_qat(model, inplace=True)
 
     model.apply(quant.disable_fake_quant)
     model.apply(quant.enable_observer)
 
-    print("  QAT: qnnpack (reduce_range=False, per-tensor) | "
+    print("  QAT: EMA observer (averaging_constant=0.001), reduce_range=False, per-tensor | "
           "fake_quant disabled until calibration complete")
     return model, cfg
 
@@ -192,15 +230,16 @@ def qat_finetune(model, dl_train, dl_val, cfg, device="cpu",
     best_score = -1.0
     best_metrics = {}
     best_epoch = -1
+    prev_loss = None
+    no_improve = 0
+    qat_patience = int(qat_cfg.get("patience", 3))
 
     print(f"\n{'='*70}")
     print(f"QAT Fine-tuning: {epochs} epochs, lr={lr_qat:.1e}")
     print(f"  Phase 1 calibration: epochs 0–{n_calibration-1}  "
           f"(observers ON, fake_quant OFF)")
-    print(f"  Phase 2 adaptation:  epochs {n_calibration}–{freeze_epoch-1}  "
-          f"(observers ON, fake_quant ON) — {n_adapt} epoch(s)")
-    print(f"  Phase 3 stable:      epochs {freeze_epoch}–{epochs-1}  "
-          f"(observers OFF, fake_quant ON)")
+    print(f"  Phase 2 adaptation:  epochs {n_calibration}–{epochs-1}  "
+          f"(MinMaxObserver ON, fake_quant ON)")
     print(f"  Task weights: scatter={w_scatter}, primary={w_primary}")
     print(f"  Checkpoint dir: {ckpt_dir}")
     print(f"{'='*70}\n")
@@ -267,6 +306,15 @@ def qat_finetune(model, dl_train, dl_val, cfg, device="cpu",
             print(f"QAT Ep {epoch:3d} [calibration] | loss={avg_loss:.4f}")
             continue
 
+        # Loss-spike guard: compare consecutive ADAPTATION epochs only (not vs calibration).
+        # Fires if loss jumps >20x after the model was stable (prev_loss < 0.005).
+        # Calibration loss is excluded from comparison — adaptation loss starts higher
+        # (fake_quant noise) and is not comparable to float32 calibration loss.
+        if epoch > n_calibration and prev_loss is not None and prev_loss < 0.005 and avg_loss > prev_loss * 20:
+            print(f"\n  [Loss spike] loss {prev_loss:.4f} → {avg_loss:.4f} "
+                  f"({avg_loss/prev_loss:.0f}x jump) — quantization collapse detected, stopping.")
+            break
+
         val_metrics = evaluate_qat(model, dl_val, device)
         score = _qat_val_score(val_metrics)
 
@@ -275,12 +323,15 @@ def qat_finetune(model, dl_train, dl_val, cfg, device="cpu",
             best_score = score
             best_epoch = epoch
             best_metrics = val_metrics.copy()
+            no_improve = 0
             torch.save({
                 "epoch": epoch,
                 "student": model.state_dict(),
                 "cfg": cfg,
                 "metrics": val_metrics,
             }, os.path.join(ckpt_dir, "best_qat.pt"))
+        else:
+            no_improve += 1
 
         print(
             f"QAT Ep {epoch:3d} | loss={avg_loss:.4f} | "
@@ -290,8 +341,13 @@ def qat_finetune(model, dl_train, dl_val, cfg, device="cpu",
             f"AUPRC_Primary_all={val_metrics.get('AUPRC_Primary', 0):.4f} "
             f"score={score:.4f} "
             f"lr={optimizer.param_groups[0]['lr']:.2e} "
-            f"{'*' if is_best else ''}"
+            f"{'*' if is_best else f'(no_improve={no_improve}/{qat_patience})'}"
         )
+        prev_loss = avg_loss
+
+        if no_improve >= qat_patience:
+            print(f"\n  [Early stop] No improvement for {qat_patience} epochs, stopping.")
+            break
 
     print(f"\nQAT complete. Best AUPRC_Primary_ICS: {best_score:.4f} (epoch {best_epoch})")
 

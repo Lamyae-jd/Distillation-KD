@@ -88,6 +88,7 @@ qat:
   epochs: 15
   n_calibration: 3        # Phase 1: observers ON, fake_quant OFF
   n_adapt: 12             # Phase 2: covers all remaining epochs — observers never freeze
+  patience: 3             # early stop if AUPRC_Primary_ICS doesn't improve for 3 epochs
   # n_adapt=12 → freeze_epoch=15=epochs → freeze code never triggers within the loop.
   # Rationale: freeze at ep5 caused 300x loss spike (0.0002→0.0573, AccTop1 0.987→0.772)
   # because locked ranges diverge from weights still being updated at lr=2e-6.
