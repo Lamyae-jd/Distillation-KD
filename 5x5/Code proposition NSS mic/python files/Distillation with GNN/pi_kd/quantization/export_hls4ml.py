@@ -206,12 +206,17 @@ def export_to_hls(model, output_dir, backend="Vivado", part=None, board=None,
     onnx_path = os.path.join(output_dir, "student.onnx")
     model.eval()
     dummy = torch.randn(1, 3, 5, 5)
+    # dynamo=False forces the legacy TorchScript-based exporter, which actually
+    # respects opset_version=11. The new dynamo exporter (default in torch 2.6+)
+    # ignores opset_version and emits opset 14+, breaking qonnx's version
+    # converter ("No Adapter From Version 14 for Relu").
     torch.onnx.export(
         model, dummy, onnx_path,
         input_names=["input"],
         output_names=["P_logits"],
         dynamic_axes={"input": {0: "batch"}},
         opset_version=11,
+        dynamo=False,
     )
     print(f"[1/6] ONNX → {onnx_path}")
 
@@ -338,6 +343,30 @@ def export_to_hls(model, output_dir, backend="Vivado", part=None, board=None,
     hls_model.write()
     print(f"[6/6] HLS C++ written → {output_dir}/firmware/")
     print(f"  Target: {board or part or '(no device set)'}")
+
+    # hls4ml 1.3.0 bug: nnet_depthwise_product.h has both #pragma HLS INLINE
+    # and #pragma HLS PIPELINE on depthwise_product_latency — conflict in io_stream
+    # mode (Vitis HLS 2023.1 error HLS 214-272). Fix: replace INLINE with INLINE OFF.
+    if io_type == "io_stream":
+        dw_hdr = os.path.join(output_dir, "firmware", "nnet_utils", "nnet_depthwise_product.h")
+        if os.path.exists(dw_hdr):
+            with open(dw_hdr) as f:
+                src = f.read()
+            patched = src.replace(
+                "depthwise_product_latency(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_out],\n"
+                "                               typename CONFIG_T::weight_t weights[CONFIG_T::n_in * CONFIG_T::n_out],\n"
+                "                               typename CONFIG_T::bias_t biases[CONFIG_T::n_out]) {\n"
+                "    #pragma HLS INLINE\n",
+                "depthwise_product_latency(data_T data[CONFIG_T::n_in], res_T res[CONFIG_T::n_out],\n"
+                "                               typename CONFIG_T::weight_t weights[CONFIG_T::n_in * CONFIG_T::n_out],\n"
+                "                               typename CONFIG_T::bias_t biases[CONFIG_T::n_out]) {\n"
+                "    #pragma HLS INLINE OFF\n",
+            )
+            if patched != src:
+                with open(dw_hdr, "w") as f:
+                    f.write(patched)
+                print("  [patch] nnet_depthwise_product.h: INLINE → INLINE OFF (io_stream pragma conflict fix)")
+
     return hls_model
 
 
