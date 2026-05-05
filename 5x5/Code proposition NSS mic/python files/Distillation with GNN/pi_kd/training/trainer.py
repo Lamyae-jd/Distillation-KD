@@ -66,19 +66,13 @@ class PIKDTrainer:
         self.ckpt_dir = ckpt_dir
         os.makedirs(ckpt_dir, exist_ok=True)
 
-        # Loss functions
-        self.focal_scatter = FocalLoss(gamma=2.0)
+        # Loss functions (mono-head: primary only)
         self.focal_primary = FocalLoss(gamma=2.0)
-        self.focal_ics = FocalLoss(gamma=2.0)
 
         kd_cfg = cfg.get("distillation", {})
         self.kd_loss = DistillationLoss(temperature=kd_cfg.get("temperature", 1.5))
-        phys_mode = kd_cfg.get("physics_mode", "ranking")
-        pitch = cfg.get("data", {}).get("pixel_pitch_mm", (2.0, 2.0))[0]
-        if phys_mode == "ranking":
-            self.phys_loss = PhysicsRankingLoss(pitch_mm=pitch)
-        else:
-            self.phys_loss = PhysicsLossCorreected(pitch_mm=pitch)
+        # Physics loss requires scatter head — disabled in mono-head version
+        self.phys_loss = None
 
         # B. Feature matching loss (learned projection student -> teacher space)
         feat_cfg = kd_cfg.get("feature_matching", {})
@@ -107,10 +101,8 @@ class PIKDTrainer:
             T_end=kd_cfg.get("T_end", 1.2),
         )
 
-        # Task loss weights
-        self.w_scatter = cfg.get("loss_weights", {}).get("scatter", 1.0)
-        self.w_primary = cfg.get("loss_weights", {}).get("primary", 2.0)
-        self.w_ics = cfg.get("loss_weights", {}).get("ics", 2.0)
+        # Task loss weight (mono-head: primary only)
+        self.w_primary = cfg.get("loss_weights", {}).get("primary", 1.0)
 
         # Mixed precision
         use_amp = (device == "cuda") and cfg.get("mixed_precision", True)
@@ -144,25 +136,10 @@ class PIKDTrainer:
                                            extract_features=extract_features)
 
     def _task_loss(self, student_out, targets):
-        """Compute task losses: focal on scatter, primary, ICS."""
-        l_scatter = self.focal_scatter(student_out["S_logits"], targets["S_star"].unsqueeze(1))
+        """Compute task loss: focal on primary head only."""
         l_primary = self.focal_primary(student_out["P_logits"], targets["P_star"].unsqueeze(1))
-        l_ics = self.focal_ics(
-            student_out["ics_logit"],
-            targets["is_ics"].float(),
-        )
-
-        l_task = (
-            self.w_scatter * l_scatter
-            + self.w_primary * l_primary
-            + self.w_ics * l_ics
-        )
-
-        return l_task, {
-            "scatter": l_scatter.item(),
-            "primary": l_primary.item(),
-            "ics": l_ics.item(),
-        }
+        l_task = self.w_primary * l_primary
+        return l_task, {"primary": l_primary.item()}
 
     def _apply_warmup_lr(self, epoch, phase_start_epoch: int = 0):
         """Linear LR warmup relative to the start of the current phase."""
@@ -248,14 +225,8 @@ class PIKDTrainer:
                     l_total = l_total + adaptive_feat * l_feat
                     l_feat_scaled = adaptive_feat * l_feat.item()
 
+                # Physics loss disabled in mono-head version (requires scatter head)
                 l_phys_scaled = 0.0
-                l_phys = torch.tensor(0.0, device=self.device)
-                if lambdas["lambda_phys"] > 0:
-                    l_phys = self.phys_loss(student_out, x, y)
-                    phys_mag_f = max(float(l_phys.detach()), 1e-7)
-                    adaptive_phys = lambdas["lambda_phys"] * task_mag_f / phys_mag_f
-                    l_total = l_total + adaptive_phys * l_phys
-                    l_phys_scaled = adaptive_phys * l_phys.item()
 
             self.scaler.scale(l_total).backward()
             self.scaler.unscale_(self.opt)
@@ -284,13 +255,11 @@ class PIKDTrainer:
 
     @torch.no_grad()
     def validate(self, loader, epoch):
+        """Validate on primary head only. Composite metric = AUPRC_Primary_ICS."""
         self.student.eval()
 
-        all_S_prob, all_S_true = [], []
         all_P_prob, all_P_true = [], []
-        ics_P_prob, ics_P_true = [], []       # primary metrics on ICS events only
-        ics_S_prob, ics_S_true = [], []       # scatter metrics on ICS events only
-        all_ics_prob, all_ics_true = [], []
+        ics_P_prob, ics_P_true = [], []   # primary metrics on ICS events only
         top1_correct, top1_total = 0, 0
 
         for x, y in loader:
@@ -298,9 +267,7 @@ class PIKDTrainer:
             y = {k: (v.to(self.device) if isinstance(v, torch.Tensor) else v) for k, v in y.items()}
 
             out = self.student(x)
-            S_prob = torch.sigmoid(out["S_logits"]).squeeze(1).cpu()
             P_prob = torch.sigmoid(out["P_logits"]).squeeze(1).cpu()
-            ics_prob = torch.sigmoid(out["ics_logit"]).cpu()
             is_ics = y["is_ics"].cpu()
 
             # AccTop1: is the highest-scoring pixel a true primary?
@@ -312,34 +279,20 @@ class PIKDTrainer:
             top1_correct += int((gt_at_pred[has_primary] > 0).sum())
             top1_total += int(has_primary.sum())
 
-            all_S_prob.append(S_prob.reshape(-1))
-            all_S_true.append(y["S_star"].cpu().reshape(-1))
             all_P_prob.append(P_prob.reshape(-1))
             all_P_true.append(y["P_star"].cpu().reshape(-1))
-            all_ics_prob.append(ics_prob)
-            all_ics_true.append(is_ics.float())
 
-            # Collect primary / scatter predictions only for ICS events
             for b in range(x.shape[0]):
                 if is_ics[b]:
                     ics_P_prob.append(P_prob[b].flatten())
                     ics_P_true.append(y["P_star"][b].cpu().flatten())
-                    ics_S_prob.append(S_prob[b].flatten())
-                    ics_S_true.append(y["S_star"][b].cpu().flatten())
 
-        S_prob = torch.cat(all_S_prob).numpy()
-        S_true = torch.cat(all_S_true).numpy()
-        P_prob = torch.cat(all_P_prob).numpy()
-        P_true = torch.cat(all_P_true).numpy()
-        ics_prob = torch.cat(all_ics_prob).numpy()
-        ics_true = torch.cat(all_ics_true).numpy()
+        P_prob_np = torch.cat(all_P_prob).numpy()
+        P_true_np = torch.cat(all_P_true).numpy()
         ics_P_prob_np = torch.cat(ics_P_prob).numpy() if ics_P_prob else np.array([])
         ics_P_true_np = torch.cat(ics_P_true).numpy() if ics_P_true else np.array([])
-        ics_S_prob_np = torch.cat(ics_S_prob).numpy() if ics_S_prob else np.array([])
-        ics_S_true_np = torch.cat(ics_S_true).numpy() if ics_S_true else np.array([])
 
         def best_threshold_f1(probs, labels):
-            """Find threshold maximizing F1 via precision-recall curve."""
             precision, recall, thresholds = precision_recall_curve(labels, probs)
             f1s = 2 * precision * recall / np.maximum(precision + recall, 1e-8)
             best_idx = np.argmax(f1s)
@@ -348,46 +301,23 @@ class PIKDTrainer:
 
         metrics = {}
 
-        # Scatter metrics
-        if S_true.sum() > 0:
-            metrics["AUPRC_Scatter"] = average_precision_score(S_true, S_prob)
-            metrics["AUROC_Scatter"] = roc_auc_score(S_true, S_prob)
-            best_f1, best_thr = best_threshold_f1(S_prob, S_true)
-            metrics["Scatter_F1"] = best_f1
-            metrics["Scatter_Thr"] = best_thr
-
-        # Primary metrics (all events — diluted by 92% non-ICS)
-        if P_true.sum() > 0:
-            metrics["AUPRC_Primary"] = average_precision_score(P_true, P_prob)
-            best_f1, best_thr = best_threshold_f1(P_prob, P_true)
+        # Primary metrics (all events — diluted by ~92% non-ICS, kept for diagnostic)
+        if P_true_np.sum() > 0:
+            metrics["AUPRC_Primary"] = average_precision_score(P_true_np, P_prob_np)
+            best_f1, best_thr = best_threshold_f1(P_prob_np, P_true_np)
             metrics["Primary_F1"] = best_f1
             metrics["Primary_Thr"] = best_thr
         if top1_total > 0:
             metrics["Primary_AccTop1"] = top1_correct / top1_total
 
-        # Primary metrics on ICS events only (operationally relevant)
+        # Primary metrics on ICS events only — the operational target
         if len(ics_P_true_np) > 0 and ics_P_true_np.sum() > 0:
             metrics["AUPRC_Primary_ICS"] = average_precision_score(ics_P_true_np, ics_P_prob_np)
-            best_f1_ics, best_thr_ics = best_threshold_f1(ics_P_prob_np, ics_P_true_np)
+            best_f1_ics, _ = best_threshold_f1(ics_P_prob_np, ics_P_true_np)
             metrics["Primary_F1_ICS"] = best_f1_ics
 
-        # Scatter metrics on ICS events only (excludes non-ICS dilution)
-        if len(ics_S_true_np) > 0 and ics_S_true_np.sum() > 0:
-            metrics["AUPRC_Scatter_ICS"] = average_precision_score(ics_S_true_np, ics_S_prob_np)
-            best_f1_s_ics, best_thr_s_ics = best_threshold_f1(ics_S_prob_np, ics_S_true_np)
-            metrics["Scatter_F1_ICS"] = best_f1_s_ics
-            metrics["Scatter_Thr_ICS"] = best_thr_s_ics
-
-        # ICS metrics
-        if ics_true.sum() > 0 and (1 - ics_true).sum() > 0:
-            metrics["AUPRC_ICS"] = average_precision_score(ics_true, ics_prob)
-            metrics["AUROC_ICS"] = roc_auc_score(ics_true, ics_prob)
-            best_f1, best_thr = best_threshold_f1(ics_prob, ics_true)
-            metrics["ICS_F1"] = best_f1
-            metrics["ICS_Thr"] = best_thr
-
-        # Composite score: primary localization only (scatter/ICS not our objective)
-        metrics["composite"] = metrics.get("AUPRC_Primary", 0.0)
+        # Composite score = AUPRC on ICS pool (8% positives, real objective)
+        metrics["composite"] = metrics.get("AUPRC_Primary_ICS", 0.0)
 
         return metrics
 
@@ -405,23 +335,60 @@ class PIKDTrainer:
         if is_best:
             torch.save(state, os.path.join(self.ckpt_dir, "best.pt"))
 
-    def load_checkpoint(self, ckpt_path: str) -> int:
+    def load_checkpoint(self, ckpt_path: str, weights_only: bool = False) -> int:
         """
-        Load student, feat_proj, optimizer, and scaler state from a checkpoint.
-        Returns the saved epoch number.
+        Load checkpoint state.
 
-        Usage: call before fit() to resume training. Pass start_epoch=epoch+1
-        to fit() so the curriculum picks up from the right phase.
+        Args:
+            ckpt_path: path to checkpoint (.pt)
+            weights_only: if True, load only student weights (with strict=False to
+                handle removed heads from old multi-head checkpoints). Optimizer,
+                scaler, feat_proj are skipped — fresh state. Returns 0.
+                If False (default): full resume with optimizer, scaler, feat_proj.
         """
         state = torch.load(ckpt_path, map_location=self.device)
-        self.student.load_state_dict(state["student"])
-        self.feat_loss.load_state_dict(state["feat_proj"])
-        self.opt.load_state_dict(state["optimizer"])
-        self.scaler.load_state_dict(state["scaler"])
-        self.best_score = state["metrics"].get("composite", -1.0)
+
+        # student: strict=False handles the case where the old checkpoint has
+        # scatter_head.* / ics_head.* keys that no longer exist in the model.
+        sd = state["student"]
+        # Skip QAT-only fake_quant keys silently
+        sd = {k: v for k, v in sd.items()
+              if not any(t in k for t in ["fake_quant", "activation_post_process",
+                                          ".scale", ".zero_point"])}
+        result = self.student.load_state_dict(sd, strict=False)
+        if result.missing_keys:
+            print(f"  WARNING: {len(result.missing_keys)} keys missing from checkpoint: "
+                  f"{result.missing_keys[:3]}...")
+        skipped = [k for k in state["student"].keys()
+                   if k not in sd or k not in self.student.state_dict()]
+        if skipped:
+            removed = [k for k in skipped if any(h in k for h in ["scatter_head", "ics_head"])]
+            if removed:
+                print(f"  Skipped {len(removed)} legacy head keys (scatter/ics removed)")
+
+        if weights_only:
+            self.best_score = -1.0
+            print(f"  Loaded student weights only (fresh optimizer/scaler/feat_proj).")
+            return 0
+
+        # Full resume path
+        if "feat_proj" in state:
+            try:
+                self.feat_loss.load_state_dict(state["feat_proj"])
+            except Exception as e:
+                print(f"  WARNING: feat_proj reload failed ({e}), keeping fresh proj")
+        if "optimizer" in state:
+            try:
+                self.opt.load_state_dict(state["optimizer"])
+            except Exception as e:
+                print(f"  WARNING: optimizer reload failed ({e}), keeping fresh optimizer")
+        if "scaler" in state:
+            try:
+                self.scaler.load_state_dict(state["scaler"])
+            except Exception:
+                pass
+        self.best_score = state.get("metrics", {}).get("composite", -1.0)
         saved_epoch = state.get("epoch", 0)
-        # Reset LR to base so each resumed phase starts fresh (avoids
-        # inheriting a decayed LR from the previous phase's ReduceLROnPlateau)
         for pg in self.opt.param_groups:
             pg["lr"] = self.base_lr
         print(f"  Resumed from epoch {saved_epoch} "
@@ -491,14 +458,10 @@ class PIKDTrainer:
                 f"Ep {epoch:3d} [{phase:16s}] T={T:4.1f} "
                 f"loss={train_losses['total']:.4f} "
                 f"(task={train_losses['task']:.4f} kd={train_losses['kd_scaled']:.4f} "
-                f"kd_pre={train_losses['kd_pre_mhsa']:.4f} "
-                f"feat={train_losses['feat_scaled']:.4f} phys={train_losses['phys_scaled']:.4f}) | "
-                f"S_F1={val_metrics.get('Scatter_F1', 0):.3f}(ap={val_metrics.get('AUPRC_Scatter', 0):.3f}) "
-                f"S_ICS={val_metrics.get('Scatter_F1_ICS', 0):.3f}(ap={val_metrics.get('AUPRC_Scatter_ICS', 0):.3f}) "
+                f"kd_pre={train_losses['kd_pre_mhsa']:.4f} feat={train_losses['feat_scaled']:.4f}) | "
                 f"P_F1={val_metrics.get('Primary_F1', 0):.3f}(ap={val_metrics.get('AUPRC_Primary', 0):.3f}) "
                 f"P_ICS={val_metrics.get('Primary_F1_ICS', 0):.3f}(ap={val_metrics.get('AUPRC_Primary_ICS', 0):.3f}) "
                 f"AccTop1={val_metrics.get('Primary_AccTop1', 0):.4f} "
-                f"ICS_F1={val_metrics.get('ICS_F1', 0):.3f}(ap={val_metrics.get('AUPRC_ICS', 0):.3f}) "
                 f"score={score:.4f} {'*' if is_best else ''} "
                 f"lr={lr:.2e} {dt:.0f}s"
             )

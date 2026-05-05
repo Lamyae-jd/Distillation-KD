@@ -55,7 +55,7 @@ class DistillationLoss(nn.Module):
                 pre_mhsa_weight: float = 0.0,
                 post_mhsa_weight: float = 1.0) -> dict:
         """
-        Compute distillation losses for all output heads.
+        Compute distillation loss on primary head only.
 
         When pre_mhsa_weight > 0 and teacher provides P1_logits (pre-MHSA),
         the KD loss is a weighted mix:
@@ -63,14 +63,14 @@ class DistillationLoss(nn.Module):
         This gives the student a CNN-compatible target alongside the full teacher target.
 
         Args:
-            student_out: dict with S_logits, P_logits, ics_logit
-            teacher_out: dict with S_logits, P_logits, P1_logits, ics_logit
+            student_out: dict with P_logits
+            teacher_out: dict with P_logits, P1_logits (optional)
             temperature: current temperature from curriculum scheduler
             pre_mhsa_weight: weight for pre-MHSA KD term (default 0.0 = disabled)
             post_mhsa_weight: weight for post-MHSA KD term (default 1.0)
 
         Returns:
-            dict with kd_primary, kd_pre_mhsa, kd_total (and zero placeholders)
+            dict with kd_primary, kd_pre_mhsa, kd_total
         """
         T = temperature if temperature is not None else self.T_default
 
@@ -85,10 +85,8 @@ class DistillationLoss(nn.Module):
         kd_total = post_mhsa_weight * kd_primary + pre_mhsa_weight * kd_pre_mhsa
 
         return {
-            "kd_scatter": torch.zeros(1, device=student_out["P_logits"].device),
             "kd_primary": kd_primary,
             "kd_pre_mhsa": kd_pre_mhsa,
-            "kd_ics": torch.zeros(1, device=student_out["P_logits"].device),
             "kd_total": kd_total,
         }
 

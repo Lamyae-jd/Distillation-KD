@@ -64,6 +64,10 @@ def main():
     parser.add_argument("--resume", default=None, metavar="CKPT",
                         help="Resume training from a checkpoint (e.g. checkpoints_pikd/best.pt). "
                              "Loads student, optimizer, scaler state and starts from the saved epoch.")
+    parser.add_argument("--init-from", default=None, metavar="CKPT", dest="init_from",
+                        help="Initialize student weights from a checkpoint with strict=False, "
+                             "but start fresh optimizer/scaler/scheduler (epoch 0). "
+                             "Used to fine-tune a mono-head model from an old multi-head checkpoint.")
     parser.add_argument("--tag", default=None,
                         help="Optional run tag appended to log filename (e.g. 'v2_adaptive_phys')")
     parser.add_argument("--qat", action="store_true",
@@ -258,6 +262,14 @@ def main():
         saved_epoch = trainer.load_checkpoint(ckpt_path)
         start_epoch = saved_epoch + 1
         print(f"[Resume] Starting from epoch {start_epoch}")
+    elif args.init_from:
+        ckpt_path = args.init_from
+        if not os.path.isabs(ckpt_path):
+            ckpt_path = os.path.join(PARENT_DIR, ckpt_path)
+        print(f"\n[Init-from] Loading student weights from: {ckpt_path}")
+        trainer.load_checkpoint(ckpt_path, weights_only=True)
+        start_epoch = 0
+        print(f"[Init-from] Starting fresh optimizer/scheduler at epoch 0")
 
     trainer.fit(
         dl_train, dl_val,

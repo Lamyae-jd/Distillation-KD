@@ -24,8 +24,8 @@ distillation:
   temperature: 1.5        # fallback if annealing disabled
 
   lambda_kd: 0.5          # RATIO: KD contributes 50% of task loss (adaptive normalization in trainer)
-  lambda_phys: 0.1        # RATIO: physics contributes 10% of task loss (adaptive normalization in trainer)
-  physics_mode: ranking   # "ranking" = cosine-sim (coherent), "mse" = legacy MSE (conflicts with BCE)
+  lambda_phys: 0.0        # DISABLED in mono-head version (physics requires scatter head)
+  physics_mode: ranking   # kept for backward compat, unused when lambda_phys=0
   lambda_feat: 0.0        # disabled — see use_feature_matching below
 
   # Pre/post-MHSA KD split: teacher P1_logits (CNN-only, pre-attention) provide
@@ -45,37 +45,29 @@ distillation:
     teacher_ch: 64
 
 curriculum:
-  num_phases: 2           # 2 = Task -> Task+KD+Phys  |  3 = Task -> +KD -> +KD+Phys (legacy)
-  phase1_frac: 0.50       # task-only phase (first 45 epochs)
-  phase2_frac: 0.50       # (3-phase only) KD-only fraction before physics
-  ramp_epochs: 3          # linear ramp-up within each phase
+  num_phases: 2           # Phase 1: Task only, Phase 2: Task+KD (mono-head, no physics)
+  phase1_frac: 0.50       # task-only phase
+  phase2_frac: 0.50       # legacy field, unused with num_phases=2
+  ramp_epochs: 3
 
-# ── Ablation study flags (CLI) ──────────────────────────────────────
-# python -m pi_kd.scripts.train                         → full PI-KD (task + KD + physics)
-# python -m pi_kd.scripts.train --no-physics            → task + KD only
-# python -m pi_kd.scripts.train --no-teacher            → task + physics only
-# python -m pi_kd.scripts.train --no-teacher --no-physics → task baseline
-# These flags zero out the corresponding lambdas at runtime.
-
+# Mono-head version: only primary head exists (scatter and ics removed from model).
 loss_weights:
-  scatter: 0.15
   primary: 1.0
-  ics: 0.0
 
 train:
   batch_size: 1024
   num_workers: 8
-  epochs: 90
+  epochs: 30        # mono-head fine-tune from distilled checkpoint: 30 epochs suffisent
   lr: 0.0003
   weight_decay: 0.0001
   val_split: 0.2
   seed: 1337
-  early_patience: 30  # = phase length, guarantees all 3 phases complete their full 30 epochs
-  warmup_epochs: 3       # LR ramps linearly from lr/10 to lr over first 3 epochs
+  early_patience: 12
+  warmup_epochs: 3
 
 mixed_precision: true
 
-ckpt_dir: "./checkpoints_pikd"
+ckpt_dir: "./checkpoints_pikd_monohead"
 
 # QAT config (post-distillation)
 # n_calibration: epochs where observers collect stats with fake_quant OFF.
@@ -95,4 +87,4 @@ qat:
   # EMA averaging_constant=0.01 is slow enough that drift over 12 epochs is negligible.
   lr_factor: 0.01         # lr = base_lr * lr_factor = 3e-4 * 0.01 = 3e-6
   cosine_eta_min: 1.0e-7
-  ckpt_dir: "./checkpoints_qat"
+  ckpt_dir: "./checkpoints_qat_monohead"

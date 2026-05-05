@@ -135,9 +135,10 @@ def teacher_inference(teacher: nn.Module, x: torch.Tensor,
     result = {
         "S_logits": out["S_logits"].detach(),
         "P_logits": out["P_logits"].detach(),
-        "P1_logits": out["P1_logits"].detach(),
         "ics_logit": out["ics_logit"].detach(),
     }
+    if "P1_logits" in out:
+        result["P1_logits"] = out["P1_logits"].detach()
     if extract_features:
         result["feat_inter"] = _extract_trunk_features(teacher, x).detach()
     return result
@@ -167,16 +168,20 @@ def multi_teacher_inference(teachers: List[nn.Module], x: torch.Tensor,
     S_acc, P_acc, P1_acc, ics_acc = None, None, None, None
     feat_acc = None
 
-    for t in teachers:
+    has_p1 = True  # confirmed at first teacher; left as flag for clarity
+    for i, t in enumerate(teachers):
         out = t(x, use_T_bias=T_star)
         s = out["S_logits"].detach()
         p = out["P_logits"].detach()
-        p1 = out["P1_logits"].detach()
         ic = out["ics_logit"].detach()
+        if "P1_logits" in out:
+            p1 = out["P1_logits"].detach()
+            P1_acc = p1 if P1_acc is None else P1_acc + p1
+        else:
+            has_p1 = False
 
         S_acc = s if S_acc is None else S_acc + s
         P_acc = p if P_acc is None else P_acc + p
-        P1_acc = p1 if P1_acc is None else P1_acc + p1
         ics_acc = ic if ics_acc is None else ics_acc + ic
 
         if extract_features:
@@ -186,9 +191,10 @@ def multi_teacher_inference(teachers: List[nn.Module], x: torch.Tensor,
     result = {
         "S_logits": S_acc / n,
         "P_logits": P_acc / n,
-        "P1_logits": P1_acc / n,
         "ics_logit": ics_acc / n,
     }
+    if has_p1 and P1_acc is not None:
+        result["P1_logits"] = P1_acc / n
     if extract_features and feat_acc is not None:
         result["feat_inter"] = feat_acc / n
 

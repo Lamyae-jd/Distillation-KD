@@ -73,7 +73,14 @@ def prepare_for_qat(student, ckpt_path, device="cpu"):
     widths = tuple(cfg.get("student", {}).get("widths", [32, 64, 64]))
 
     model = StudentNet(in_ch=3, widths=widths)
-    model.load_state_dict(ckpt["student"])
+    # strict=False so we can load checkpoints from older multi-head training
+    # (scatter_head/ics_head keys are silently dropped)
+    sd = ckpt["student"]
+    sd = {k: v for k, v in sd.items()
+          if not any(t in k for t in ["fake_quant", "activation_post_process"])}
+    res = model.load_state_dict(sd, strict=False)
+    if res.missing_keys:
+        print(f"  WARNING: missing keys after load: {res.missing_keys[:3]}...")
     model.to(device)
     model.eval()
     model.fuse_bn()
@@ -130,7 +137,6 @@ def evaluate_qat(model, dl_val, device="cpu"):
     """
     model.eval()
     all_P_prob, all_P_true = [], []
-    all_S_prob, all_S_true = [], []
     ics_P_prob, ics_P_true = [], []
     correct_top1, total_ics = 0, 0
 
@@ -140,15 +146,11 @@ def evaluate_qat(model, dl_val, device="cpu"):
             out = model(x)
 
             P_prob = torch.sigmoid(out["P_logits"]).squeeze(1).cpu()
-            S_prob = torch.sigmoid(out["S_logits"]).squeeze(1).cpu()
             P_star = y["P_star"].cpu()
-            S_star = y["S_star"].cpu()
             is_ics = y["is_ics"].cpu()
 
             all_P_prob.append(P_prob.reshape(-1))
             all_P_true.append(P_star.reshape(-1))
-            all_S_prob.append(S_prob.reshape(-1))
-            all_S_true.append(S_star.reshape(-1))
 
             for b in range(x.shape[0]):
                 if is_ics[b]:
@@ -170,11 +172,6 @@ def evaluate_qat(model, dl_val, device="cpu"):
         prec, rec, _ = precision_recall_curve(P_true_np, P_prob_np)
         f1s = 2 * prec * rec / np.maximum(prec + rec, 1e-8)
         metrics["Primary_F1"] = float(f1s.max())
-
-    S_prob_np = torch.cat(all_S_prob).numpy()
-    S_true_np = torch.cat(all_S_true).numpy()
-    if S_true_np.sum() > 0:
-        metrics["AUPRC_Scatter"] = average_precision_score(S_true_np, S_prob_np)
 
     if ics_P_prob:
         ics_prob_np = torch.cat(ics_P_prob).numpy()
@@ -221,10 +218,8 @@ def qat_finetune(model, dl_train, dl_val, cfg, device="cpu",
         optimizer, T_max=max(epochs, 1), eta_min=eta_min,
     )
 
-    focal_S = FocalLoss(gamma=2.0)
     focal_P = FocalLoss(gamma=2.0)
 
-    w_scatter = cfg.get("loss_weights", {}).get("scatter", 0.15)
     w_primary = cfg.get("loss_weights", {}).get("primary", 1.0)
 
     best_score = -1.0
@@ -240,7 +235,7 @@ def qat_finetune(model, dl_train, dl_val, cfg, device="cpu",
           f"(observers ON, fake_quant OFF)")
     print(f"  Phase 2 adaptation:  epochs {n_calibration}–{epochs-1}  "
           f"(MinMaxObserver ON, fake_quant ON)")
-    print(f"  Task weights: scatter={w_scatter}, primary={w_primary}")
+    print(f"  Task weights: primary={w_primary} (mono-head)")
     print(f"  Checkpoint dir: {ckpt_dir}")
     print(f"{'='*70}\n")
 
@@ -286,9 +281,8 @@ def qat_finetune(model, dl_train, dl_val, cfg, device="cpu",
             optimizer.zero_grad()
             out = model(x)
 
-            l_s = focal_S(out["S_logits"], y_dev["S_star"].unsqueeze(1))
             l_p = focal_P(out["P_logits"], y_dev["P_star"].unsqueeze(1))
-            loss = w_scatter * l_s + w_primary * l_p
+            loss = w_primary * l_p
 
             loss.backward()
             nn.utils.clip_grad_norm_(model.parameters(), 1.0)
