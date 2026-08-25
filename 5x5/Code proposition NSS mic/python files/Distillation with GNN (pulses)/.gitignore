@@ -1,0 +1,10 @@
+# Training artifacts — reproducible from the code
+data_cache.npz
+data_cache_lists.pkl
+checkpoints/
+figures/
+logs/
+__pycache__/
+*.pt
+*.pth
+.smoke/

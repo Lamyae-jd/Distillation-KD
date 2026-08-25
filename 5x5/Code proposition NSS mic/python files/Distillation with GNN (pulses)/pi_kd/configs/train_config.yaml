@@ -1,0 +1,90 @@
+# PI-KD Training Configuration
+# Physics-Informed Knowledge Distillation for ICS Detection
+
+data:
+  cache_npz: "../data_cache.npz"
+  cache_lists: "../data_cache_lists.pkl"
+  pixel_pitch_mm: [2.0, 2.0]
+
+student:
+  in_ch: 3
+  widths: [32, 64, 64]  # depthwise separable block channels
+
+teacher:
+  checkpoints:
+    - "../checkpoints/best.pt"
+
+distillation:
+  # Temperature annealing: T decays from T_start to T_end (cosine).
+  # For binary sigmoid KD, T must stay low so soft labels retain contrast.
+  # At T=2, teacher logit ±3 → soft label 0.82/0.18 (gap=0.64).
+  # At T=4, same logit → 0.68/0.32 (gap=0.36) — too flat for useful gradients.
+  T_start: 2.0
+  T_end: 1.2
+  temperature: 1.5        # fallback if annealing disabled
+
+  lambda_kd: 0.5          # RATIO: KD contributes 50% of task loss (adaptive normalization in trainer)
+  lambda_phys: 0.0        # DISABLED in mono-head version (physics requires scatter head)
+  physics_mode: ranking   # kept for backward compat, unused when lambda_phys=0
+  lambda_feat: 0.0        # disabled — see use_feature_matching below
+
+  # Pre/post-MHSA KD split: teacher P1_logits (CNN-only, pre-attention) provide
+  # a more student-compatible target. The KD total is:
+  #   post_mhsa_weight * KD(P_logits) + pre_mhsa_weight * KD(P1_logits)
+  # Set pre_mhsa_weight: 0.0 to disable (baseline behavior).
+  pre_mhsa_weight: 0.3
+  post_mhsa_weight: 0.7
+
+  # Feature matching: OFF by default. Student (DepthwiseSep+ReLU6) and teacher
+  # (Conv2d+BN+ReLU) have incompatible intermediate representations; forcing
+  # alignment via MSE pulls the backbone away from its task-optimal features.
+  # Re-enable with --feat flag for ablation experiments.
+  use_feature_matching: false
+  feature_matching:
+    student_ch: 64
+    teacher_ch: 64
+
+curriculum:
+  num_phases: 2           # Phase 1: Task only, Phase 2: Task+KD (mono-head, no physics)
+  phase1_frac: 0.50       # task-only phase
+  phase2_frac: 0.50       # legacy field, unused with num_phases=2
+  ramp_epochs: 3
+
+# Mono-head version: only primary head exists (scatter and ics removed from model).
+loss_weights:
+  primary: 1.0
+
+train:
+  batch_size: 1024
+  num_workers: 8
+  epochs: 30        # mono-head fine-tune from distilled checkpoint: 30 epochs suffisent
+  lr: 0.0003
+  weight_decay: 0.0001
+  val_split: 0.2
+  seed: 1337
+  early_patience: 12
+  warmup_epochs: 3
+
+mixed_precision: true
+
+ckpt_dir: "./checkpoints_pikd_monohead"
+
+# QAT config (post-distillation)
+# n_calibration: epochs where observers collect stats with fake_quant OFF.
+#   Do NOT skip — without calibration, fake_quant applies random quantization
+#   on epoch 0 and destroys the pretrained weights in the first backward pass.
+# lr_factor: keep very small — float weights are converged; QAT only nudges
+#   for INT8 constraints. 0.02 caused collapse; 0.01 is safe.
+# epochs: 15 is enough for a 10K-param model. More risks catastrophic forgetting.
+qat:
+  epochs: 15
+  n_calibration: 3        # Phase 1: observers ON, fake_quant OFF
+  n_adapt: 12             # Phase 2: covers all remaining epochs — observers never freeze
+  patience: 3             # early stop if AUPRC_Primary_ICS doesn't improve for 3 epochs
+  # n_adapt=12 → freeze_epoch=15=epochs → freeze code never triggers within the loop.
+  # Rationale: freeze at ep5 caused 300x loss spike (0.0002→0.0573, AccTop1 0.987→0.772)
+  # because locked ranges diverge from weights still being updated at lr=2e-6.
+  # EMA averaging_constant=0.01 is slow enough that drift over 12 epochs is negligible.
+  lr_factor: 0.01         # lr = base_lr * lr_factor = 3e-4 * 0.01 = 3e-6
+  cosine_eta_min: 1.0e-7
+  ckpt_dir: "./checkpoints_qat_monohead"
