@@ -1,0 +1,49 @@
+# Yosys synthesis script for StudentNet on SKY130 (sky130_fd_sc_hd).
+# Loaded via 'yosys -c synth.ys' — the whole file is Tcl. In this mode
+# yosys commands must be prefixed with 'yosys', so 'yosys read_verilog',
+# 'yosys synth -top ...', etc.
+
+proc getenv_or_die {name} {
+    if {[info exists ::env($name)]} { return $::env($name) }
+    error "environment variable $name not set"
+}
+set RTL_SRC_DIR [getenv_or_die RTL_SRC_DIR]
+set TOP_MODULE  [getenv_or_die TOP_MODULE]
+set PDK_LIB     [getenv_or_die PDK_LIB]
+set WORK_DIR    [getenv_or_die WORK_DIR]
+set ASIC_ROOT   [getenv_or_die ASIC_ROOT]
+
+puts "\[synth.ys\] RTL_SRC_DIR = $RTL_SRC_DIR"
+puts "\[synth.ys\] TOP_MODULE  = $TOP_MODULE"
+puts "\[synth.ys\] WORK_DIR    = $WORK_DIR"
+
+set rtl_files [glob -nocomplain -- $RTL_SRC_DIR/*.v]
+if {[llength $rtl_files] == 0} {
+    error "no Verilog files found in $RTL_SRC_DIR"
+}
+foreach f $rtl_files { yosys read_verilog -sv $f }
+
+yosys hierarchy -check -top $TOP_MODULE
+
+# Generic RTL synthesis. NOTE: -flatten intentionally omitted so ABC runs
+# per-submodule instead of on one 2M-cell blob. Verified 2026-08-11: with
+# -flatten, pass 57 (abc -liberty -script abc_delay.script) hangs; without
+# it, ABC is called once per submodule and each call stays tractable.
+yosys synth -top $TOP_MODULE
+
+# Map DFFs to SKY130 flops, then combinational logic through ABC.
+# abc_delay.script requests 'stime -p' at the end, which prints the
+# critical-path arrival time (used to derive Fmax without OpenSTA).
+yosys dfflibmap -liberty $PDK_LIB
+yosys abc -liberty $PDK_LIB -constr $ASIC_ROOT/scripts/abc.constr -script $ASIC_ROOT/scripts/abc_delay.script
+
+# Clean up unused signals.
+yosys opt_clean -purge
+
+# Emit gate-level netlist for later use (equivalence check, gate-level sim).
+yosys write_verilog -noattr $WORK_DIR/synth_netlist.v
+yosys write_json    $WORK_DIR/synth_netlist.json
+
+# Cell counts and cell area against the liberty.
+yosys stat
+yosys stat -liberty $PDK_LIB

@@ -1,0 +1,8 @@
+# Toolchain (oss-cad-suite, micromamba, etc.) — install per-machine
+tools/
+
+# Synthesis intermediates: netlists, JSON dumps, waveforms, run logs
+work/
+
+# Ephemeral run logs
+*.log

@@ -44,9 +44,18 @@ class StudentNet(nn.Module):
         Returns:
             dict with P_logits, feat, feat_inter
         """
-        feat_inter = self.backbone[0](x)
-        feat_inter = self.backbone[1](feat_inter)
-        feat = self.backbone[2](feat_inter)
+        # feat_inter = penultimate block output, feat = last block output.
+        # For a 1-block model, feat_inter == input.
+        h = x
+        for i, block in enumerate(self.backbone):
+            if i == len(self.backbone) - 1:
+                feat_inter = h
+                feat = block(h)
+            else:
+                h = block(h)
+        if len(self.backbone) == 1:
+            feat_inter = x
+            feat = h
 
         P_logits = self.primary_head(feat)
 
@@ -57,15 +66,10 @@ class StudentNet(nn.Module):
         }
 
     def fuse_bn(self):
-        torch.quantization.fuse_modules(
-            self.backbone[0], [["dw_conv", "dw_bn"], ["pw_conv", "pw_bn"]], inplace=True
-        )
-        torch.quantization.fuse_modules(
-            self.backbone[1], [["dw_conv", "dw_bn"], ["pw_conv", "pw_bn"]], inplace=True
-        )
-        torch.quantization.fuse_modules(
-            self.backbone[2], [["dw_conv", "dw_bn"], ["pw_conv", "pw_bn"]], inplace=True
-        )
+        for block in self.backbone:
+            torch.quantization.fuse_modules(
+                block, [["dw_conv", "dw_bn"], ["pw_conv", "pw_bn"]], inplace=True
+            )
 
     def count_params(self) -> int:
         return sum(p.numel() for p in self.parameters())

@@ -1,0 +1,73 @@
+======================================================================
+  StudentNet ASIC synthesis on SKY130 (sky130_fd_sc_hd)
+  Corner: typical (tt_025C_1v80)
+  Date  : 2026-08-20T02:25:55-04:00
+  Top   : myproject
+  RTL   : /data/jdil1901/hls_work_small/myproject_prj/solution1/syn/verilog
+======================================================================
+
+----- AREA -----
+   Chip area for module '$paramod$25973e708374cc87389dc2ae2868864163cdeb02\myproject_fifo_w17_d2_S_ShiftReg': 1234.934400
+   Chip area for module '$paramod$409b5a29a1a92704b9dd54032381c72b6064b568\myproject_mul_8s_8ns_16_1_1': 2713.852800
+   Chip area for module '$paramod$409b5a29a1a92704b9dd54032381c72b6064b568\myproject_mul_8s_8s_16_1_1': 3122.995200
+   Chip area for module '$paramod$5bdcab8e3db5fd21922e191a3525fd777b447944\myproject_mul_8s_6ns_14_1_1': 2024.441600
+   Chip area for module '$paramod$5bdcab8e3db5fd21922e191a3525fd777b447944\myproject_mul_8s_6s_14_1_1': 2143.305600
+   Chip area for module '$paramod$6520dcdf3ca4bf87168944151c5d03ac219f8ce0\myproject_fifo_w16_d2_S_ShiftReg': 1163.616000
+   Chip area for module '$paramod$80081ecab2165d0dd96ebe7f4bb0c24a073687c2\myproject_fifo_w8_d2_S_ShiftReg': 574.300800
+   Chip area for module '$paramod$dddf6e30ff65dbc254915898c93f9f1f9d5e21bb\myproject_fifo_w14_d2_S_ShiftReg': 1020.979200
+   Chip area for module '$paramod$e8a3d305a968a4bf7c594bb8ee80e2ef5ecd0da0\myproject_mul_8s_7ns_15_1_1': 2568.713600
+   Chip area for module '$paramod$e8a3d305a968a4bf7c594bb8ee80e2ef5ecd0da0\myproject_mul_8s_7s_15_1_1': 2586.230400
+   Chip area for module '$paramod$ed5cbb5b4ffd20e6b707b9a28d1f6c3cc73047c2\myproject_mul_8s_8s_15_1_1': 3036.662400
+   Chip area for module '$paramod$f7135f80631b3e092003d2d8d5a40b71d24bacff\myproject_fifo_w15_d2_S_ShiftReg': 1092.297600
+   Chip area for module '$paramod$fb7ca60774d704046a6bb5d210df3fc77cdfc940\myproject_mul_8s_5ns_13_1_1': 1642.825600
+   Chip area for module '$paramod$fb7ca60774d704046a6bb5d210df3fc77cdfc940\myproject_mul_8s_5s_13_1_1': 1637.820800
+   Chip area for module '\myproject': 376596.185600
+   Chip area for module '\myproject_depthwise_conv_2d_cl_ap_fixed_ap_fixed_17_13_5_3_0_config33_s': 144647.478400
+   Chip area for module '\myproject_depthwise_conv_2d_cl_ap_fixed_ap_fixed_17_13_5_3_0_config34_s': 978628.582400
+   Chip area for module '\myproject_depthwise_conv_2d_cl_ap_fixed_ap_fixed_17_13_5_3_0_config35_s': 1950853.523199
+   Chip area for module '\myproject_fifo_w14_d2_S': 232.723200
+   Chip area for module '\myproject_fifo_w15_d2_S': 232.723200
+   Chip area for module '\myproject_fifo_w16_d2_S': 232.723200
+   Chip area for module '\myproject_fifo_w17_d2_S': 232.723200
+   Chip area for module '\myproject_fifo_w8_d2_S': 232.723200
+   Chip area for module '\myproject_fill_buffer': 70662.771200
+   Chip area for module '\myproject_fill_buffer_1': 70662.771200
+   Chip area for module '\myproject_fill_buffer_2': 35525.321600
+   Chip area for module '\myproject_fill_buffer_3': 7030.492800
+   Chip area for module '\myproject_flow_control_loop_pipe': 37.536000
+   Chip area for module '\myproject_pointwise_conv_2d_cl_ap_fixed_ap_fixed_15_11_5_3_0_config36_s': 438075.148800
+   Chip area for module '\myproject_pointwise_conv_2d_cl_ap_fixed_ap_fixed_17_13_5_3_0_config37_s': 1258464.467200
+   Chip area for module '\myproject_pointwise_conv_2d_cl_ap_fixed_ap_fixed_18_14_5_3_0_config38_s': 1519916.470399
+   Chip area for module '\myproject_pointwise_conv_2d_cl_ap_fixed_ap_fixed_18_14_5_3_0_config39_s': 699477.104000
+   Chip area for module '\myproject_relu_ap_fixed_15_11_5_3_0_ap_fixed_8_4_5_3_0_ReLU_config19_s': 163270.339200
+   Chip area for module '\myproject_relu_ap_fixed_17_13_5_3_0_ap_fixed_8_4_5_3_0_ReLU_config17_s': 33291.929600
+   Chip area for module '\myproject_relu_ap_fixed_17_13_5_3_0_ap_fixed_8_4_5_3_0_ReLU_config21_s': 167068.982400
+   Chip area for module '\myproject_relu_ap_fixed_17_13_5_3_0_ap_fixed_8_4_5_3_0_ReLU_config23_s': 318995.942400
+   Chip area for module '\myproject_relu_ap_fixed_17_13_5_3_0_ap_fixed_8_4_5_3_0_ReLU_config25_s': 314479.110400
+   Chip area for module '\myproject_relu_ap_fixed_18_14_5_3_0_ap_fixed_8_4_5_3_0_ReLU_config27_s': 323123.651200
+
+----- CELL COUNTS (post tech-map, top-5 by cumulative area) -----
+TOTAL:   1662042 1.63E+07 cells
+   272509 8.18E+06   sky130_fd_sc_hd__edfxtp_1
+   110755 2.22E+06   sky130_fd_sc_hd__dfxtp_1
+   540501 2.03E+06   sky130_fd_sc_hd__nand2_1
+   167510 6.29E+05   sky130_fd_sc_hd__inv_1
+   110131 5.51E+05   sky130_fd_sc_hd__nand3_1
+
+----- TIMING (ABC critical-path, WireLoad=none corner) -----
+Critical-path delay : 313.91 ps
+Fmax (1/delay)      : 3185.6 MHz
+
+----- GATE EQUIVALENT -----
+NAND2 reference area : 3.7536000000 um^2
+Chip area            : 1234.934400 um^2
+Gate equivalent      : 0.33 kGE
+
+----- TIMING (OpenSTA, sign-off style, tt_025C_1v80) -----
+
+----- POWER (OpenSTA, default activity 10%/50% — order of magnitude only) -----
+
+----- DISCLAIMER -----
+Synthesis only, no place-and-route. Area under-estimates final by
+~30% (no routing tracks); Fmax over-estimates by ~30% (no long-wire
+delays). Corner: typical (tt_025C_1v80) only.

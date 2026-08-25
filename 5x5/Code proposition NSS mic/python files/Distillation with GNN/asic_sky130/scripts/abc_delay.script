@@ -1,0 +1,14 @@
+strash
+scorr
+ifraig
+retime -o
+strash
+dch -f
+map -B 0.9
+topo
+stime -c
+buffer -c
+upsize -c
+dnsize -c
+stime -p
+print_stats

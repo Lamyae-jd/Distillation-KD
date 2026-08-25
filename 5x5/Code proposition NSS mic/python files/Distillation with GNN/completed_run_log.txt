@@ -1,0 +1,123 @@
+Device: cuda
+Config: /data/jdil1901/Documents/ics/code/5x5/Code proposition NSS mic/python files/Distillation with GNN/pi_kd/configs/train_config.yaml
+
+[1/3] Loading data...
+Loading data from /data/jdil1901/Documents/ics/code/5x5/Code proposition NSS mic/python files/Distillation with GNN/pi_kd/../data_cache.npz ...
+  2,751,723 events, 219,860 ICS (8.0%)
+  Train: 2,201,378 | Val: 550,345
+
+[2/3] Building models...
+  Student: 9,892 params, ~183,555 FLOPs
+  Loading single teacher from /data/jdil1901/Documents/ics/code/5x5/Code proposition NSS mic/python files/Distillation with GNN/pi_kd/../checkpoints/best.pt
+  Teacher: 368,215 params (frozen)
+  Compression ratio: 2.7%
+
+[3/3] Training...
+
+======================================================================
+PI-KD Training: 90 epochs
+  Curriculum:        CurriculumScheduler(phases=[0-29:Task, 29-59:+KD, 59-90:+Phys], kd_max=0.5, phys_max=0.1, feat_max=0.0, T=2.0->1.2)
+  Student params:    9,892
+  Teachers:          1 
+  Feature matching:  OFF
+  Temp annealing:    2.0 -> 1.2
+======================================================================
+
+Ep   0 [Phase1:Task     ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.192(ap=0.193) P_F1=0.167(ap=0.144) ICS_F1=0.148(ap=0.078) score=0.1437 * lr=1.20e-04 367s
+Ep   1 [Phase1:Task     ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.237(ap=0.243) P_F1=0.185(ap=0.165) ICS_F1=0.148(ap=0.079) score=0.1647 * lr=2.10e-04 359s
+Ep   2 [Phase1:Task     ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.238(ap=0.245) P_F1=0.184(ap=0.175) ICS_F1=0.148(ap=0.079) score=0.1745 * lr=3.00e-04 376s
+Ep   3 [Phase1:Task     ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.243(ap=0.250) P_F1=0.185(ap=0.183) ICS_F1=0.148(ap=0.079) score=0.1834 * lr=3.00e-04 340s
+Ep   4 [Phase1:Task     ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.241(ap=0.250) P_F1=0.185(ap=0.187) ICS_F1=0.148(ap=0.080) score=0.1875 * lr=3.00e-04 358s
+Ep   5 [Phase1:Task     ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.242(ap=0.252) P_F1=0.188(ap=0.190) ICS_F1=0.148(ap=0.079) score=0.1900 * lr=3.00e-04 369s
+Ep   6 [Phase1:Task     ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.245(ap=0.251) P_F1=0.186(ap=0.192) ICS_F1=0.148(ap=0.079) score=0.1916 * lr=3.00e-04 345s
+Ep   7 [Phase1:Task     ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.244(ap=0.252) P_F1=0.185(ap=0.196) ICS_F1=0.148(ap=0.080) score=0.1962 * lr=3.00e-04 384s
+Ep   8 [Phase1:Task     ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.244(ap=0.253) P_F1=0.187(ap=0.195) ICS_F1=0.148(ap=0.079) score=0.1947  lr=3.00e-04 369s
+Ep   9 [Phase1:Task     ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.245(ap=0.256) P_F1=0.186(ap=0.193) ICS_F1=0.148(ap=0.078) score=0.1926  lr=3.00e-04 371s
+Ep  10 [Phase1:Task     ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.244(ap=0.253) P_F1=0.188(ap=0.197) ICS_F1=0.148(ap=0.077) score=0.1966 * lr=3.00e-04 362s
+Ep  11 [Phase1:Task     ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.245(ap=0.254) P_F1=0.185(ap=0.196) ICS_F1=0.148(ap=0.078) score=0.1963  lr=3.00e-04 368s
+Ep  12 [Phase1:Task     ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.246(ap=0.254) P_F1=0.191(ap=0.200) ICS_F1=0.148(ap=0.078) score=0.1998 * lr=3.00e-04 380s
+Ep  13 [Phase1:Task     ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.245(ap=0.259) P_F1=0.191(ap=0.197) ICS_F1=0.148(ap=0.077) score=0.1972  lr=3.00e-04 352s
+Ep  14 [Phase1:Task     ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.247(ap=0.256) P_F1=0.186(ap=0.201) ICS_F1=0.148(ap=0.077) score=0.2008 * lr=3.00e-04 365s
+Ep  15 [Phase1:Task     ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.247(ap=0.263) P_F1=0.196(ap=0.208) ICS_F1=0.148(ap=0.077) score=0.2081 * lr=3.00e-04 341s
+Ep  16 [Phase1:Task     ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.247(ap=0.254) P_F1=0.185(ap=0.202) ICS_F1=0.148(ap=0.078) score=0.2024  lr=3.00e-04 339s
+Ep  17 [Phase1:Task     ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.247(ap=0.264) P_F1=0.195(ap=0.209) ICS_F1=0.148(ap=0.079) score=0.2092 * lr=3.00e-04 342s
+Ep  18 [Phase1:Task     ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.247(ap=0.264) P_F1=0.194(ap=0.210) ICS_F1=0.148(ap=0.079) score=0.2097 * lr=3.00e-04 342s
+Ep  19 [Phase1:Task     ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.248(ap=0.264) P_F1=0.191(ap=0.209) ICS_F1=0.148(ap=0.078) score=0.2088  lr=3.00e-04 353s
+Ep  20 [Phase1:Task     ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.247(ap=0.265) P_F1=0.195(ap=0.209) ICS_F1=0.148(ap=0.078) score=0.2093  lr=3.00e-04 359s
+Ep  21 [Phase1:Task     ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.246(ap=0.265) P_F1=0.200(ap=0.210) ICS_F1=0.148(ap=0.079) score=0.2102 * lr=3.00e-04 351s
+Ep  22 [Phase1:Task     ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.248(ap=0.266) P_F1=0.201(ap=0.212) ICS_F1=0.148(ap=0.078) score=0.2120 * lr=3.00e-04 324s
+Ep  23 [Phase1:Task     ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.247(ap=0.266) P_F1=0.201(ap=0.212) ICS_F1=0.148(ap=0.078) score=0.2121 * lr=3.00e-04 323s
+Ep  24 [Phase1:Task     ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.247(ap=0.267) P_F1=0.203(ap=0.212) ICS_F1=0.148(ap=0.078) score=0.2122 * lr=3.00e-04 295s
+Ep  25 [Phase1:Task     ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.246(ap=0.267) P_F1=0.203(ap=0.212) ICS_F1=0.148(ap=0.078) score=0.2122  lr=3.00e-04 322s
+Ep  26 [Phase1:Task     ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.247(ap=0.267) P_F1=0.201(ap=0.212) ICS_F1=0.148(ap=0.077) score=0.2115  lr=3.00e-04 314s
+Ep  27 [Phase1:Task     ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.249(ap=0.269) P_F1=0.203(ap=0.214) ICS_F1=0.148(ap=0.078) score=0.2136 * lr=3.00e-04 319s
+Ep  28 [Phase1:Task     ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.250(ap=0.270) P_F1=0.204(ap=0.213) ICS_F1=0.148(ap=0.078) score=0.2133  lr=3.00e-04 327s
+
+  [Phase transition: Phase1:Task -> Phase2:Task+KD] Resetting patience, LR, and applying warmup.
+Ep  29 [Phase2:Task+KD  ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.249(ap=0.269) P_F1=0.203(ap=0.214) ICS_F1=0.148(ap=0.078) score=0.2144 * lr=1.20e-04 325s
+Ep  30 [Phase2:Task+KD  ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0000 feat=0.0000 phys=0.0000) | S_F1=0.247(ap=0.269) P_F1=0.203(ap=0.214) ICS_F1=0.148(ap=0.081) score=0.2136  lr=2.10e-04 322s
+Ep  31 [Phase2:Task+KD  ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0001 feat=0.0000 phys=0.0000) | S_F1=0.247(ap=0.269) P_F1=0.204(ap=0.214) ICS_F1=0.148(ap=0.081) score=0.2139  lr=3.00e-04 323s
+Ep  32 [Phase2:Task+KD  ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0001 feat=0.0000 phys=0.0000) | S_F1=0.250(ap=0.270) P_F1=0.205(ap=0.215) ICS_F1=0.148(ap=0.080) score=0.2150 * lr=3.00e-04 298s
+Ep  33 [Phase2:Task+KD  ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0001 feat=0.0000 phys=0.0000) | S_F1=0.249(ap=0.270) P_F1=0.203(ap=0.214) ICS_F1=0.148(ap=0.079) score=0.2140  lr=3.00e-04 321s
+Ep  34 [Phase2:Task+KD  ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0001 feat=0.0000 phys=0.0000) | S_F1=0.250(ap=0.270) P_F1=0.203(ap=0.214) ICS_F1=0.148(ap=0.080) score=0.2143  lr=3.00e-04 321s
+Ep  35 [Phase2:Task+KD  ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0001 feat=0.0000 phys=0.0000) | S_F1=0.250(ap=0.270) P_F1=0.204(ap=0.214) ICS_F1=0.148(ap=0.080) score=0.2144  lr=3.00e-04 341s
+Ep  36 [Phase2:Task+KD  ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0001 feat=0.0000 phys=0.0000) | S_F1=0.251(ap=0.271) P_F1=0.204(ap=0.216) ICS_F1=0.148(ap=0.080) score=0.2157 * lr=3.00e-04 301s
+Ep  37 [Phase2:Task+KD  ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0001 feat=0.0000 phys=0.0000) | S_F1=0.251(ap=0.269) P_F1=0.204(ap=0.214) ICS_F1=0.148(ap=0.079) score=0.2139  lr=3.00e-04 305s
+Ep  38 [Phase2:Task+KD  ] T= 2.0 loss=0.0002 (task=0.0002 kd=0.0001 feat=0.0000 phys=0.0000) | S_F1=0.249(ap=0.270) P_F1=0.205(ap=0.215) ICS_F1=0.148(ap=0.079) score=0.2146  lr=3.00e-04 318s
+Ep  39 [Phase2:Task+KD  ] T= 1.9 loss=0.0002 (task=0.0002 kd=0.0001 feat=0.0000 phys=0.0000) | S_F1=0.249(ap=0.269) P_F1=0.203(ap=0.214) ICS_F1=0.148(ap=0.080) score=0.2140  lr=3.00e-04 312s
+Ep  40 [Phase2:Task+KD  ] T= 1.9 loss=0.0002 (task=0.0002 kd=0.0001 feat=0.0000 phys=0.0000) | S_F1=0.250(ap=0.271) P_F1=0.204(ap=0.215) ICS_F1=0.148(ap=0.080) score=0.2153  lr=3.00e-04 322s
+Ep  41 [Phase2:Task+KD  ] T= 1.9 loss=0.0002 (task=0.0002 kd=0.0001 feat=0.0000 phys=0.0000) | S_F1=0.252(ap=0.271) P_F1=0.205(ap=0.216) ICS_F1=0.148(ap=0.080) score=0.2155  lr=3.00e-04 334s
+Ep  42 [Phase2:Task+KD  ] T= 1.9 loss=0.0002 (task=0.0002 kd=0.0001 feat=0.0000 phys=0.0000) | S_F1=0.251(ap=0.271) P_F1=0.205(ap=0.215) ICS_F1=0.148(ap=0.080) score=0.2155  lr=1.50e-04 300s
+Ep  43 [Phase2:Task+KD  ] T= 1.9 loss=0.0002 (task=0.0002 kd=0.0001 feat=0.0000 phys=0.0000) | S_F1=0.252(ap=0.272) P_F1=0.205(ap=0.216) ICS_F1=0.148(ap=0.080) score=0.2159 * lr=1.50e-04 298s
+Ep  44 [Phase2:Task+KD  ] T= 1.9 loss=0.0002 (task=0.0002 kd=0.0001 feat=0.0000 phys=0.0000) | S_F1=0.252(ap=0.272) P_F1=0.205(ap=0.216) ICS_F1=0.148(ap=0.080) score=0.2163 * lr=1.50e-04 294s
+Ep  45 [Phase2:Task+KD  ] T= 1.9 loss=0.0002 (task=0.0002 kd=0.0001 feat=0.0000 phys=0.0000) | S_F1=0.251(ap=0.271) P_F1=0.203(ap=0.215) ICS_F1=0.148(ap=0.080) score=0.2154  lr=1.50e-04 333s
+Ep  46 [Phase2:Task+KD  ] T= 1.9 loss=0.0002 (task=0.0002 kd=0.0001 feat=0.0000 phys=0.0000) | S_F1=0.251(ap=0.273) P_F1=0.205(ap=0.216) ICS_F1=0.148(ap=0.080) score=0.2160  lr=1.50e-04 305s
+Ep  47 [Phase2:Task+KD  ] T= 1.8 loss=0.0002 (task=0.0002 kd=0.0001 feat=0.0000 phys=0.0000) | S_F1=0.251(ap=0.272) P_F1=0.205(ap=0.216) ICS_F1=0.148(ap=0.080) score=0.2160  lr=1.50e-04 332s
+Ep  48 [Phase2:Task+KD  ] T= 1.8 loss=0.0002 (task=0.0002 kd=0.0001 feat=0.0000 phys=0.0000) | S_F1=0.252(ap=0.272) P_F1=0.203(ap=0.216) ICS_F1=0.148(ap=0.080) score=0.2160  lr=1.50e-04 303s
+Ep  49 [Phase2:Task+KD  ] T= 1.8 loss=0.0002 (task=0.0002 kd=0.0001 feat=0.0000 phys=0.0000) | S_F1=0.252(ap=0.273) P_F1=0.205(ap=0.216) ICS_F1=0.148(ap=0.080) score=0.2161  lr=1.50e-04 319s
+Ep  50 [Phase2:Task+KD  ] T= 1.8 loss=0.0002 (task=0.0002 kd=0.0001 feat=0.0000 phys=0.0000) | S_F1=0.251(ap=0.272) P_F1=0.204(ap=0.216) ICS_F1=0.148(ap=0.080) score=0.2157  lr=7.50e-05 296s
+Ep  51 [Phase2:Task+KD  ] T= 1.8 loss=0.0002 (task=0.0002 kd=0.0001 feat=0.0000 phys=0.0000) | S_F1=0.252(ap=0.273) P_F1=0.205(ap=0.217) ICS_F1=0.148(ap=0.080) score=0.2166 * lr=7.50e-05 300s
+Ep  52 [Phase2:Task+KD  ] T= 1.8 loss=0.0002 (task=0.0002 kd=0.0001 feat=0.0000 phys=0.0000) | S_F1=0.252(ap=0.273) P_F1=0.205(ap=0.217) ICS_F1=0.148(ap=0.080) score=0.2165  lr=7.50e-05 318s
+Ep  53 [Phase2:Task+KD  ] T= 1.7 loss=0.0002 (task=0.0002 kd=0.0001 feat=0.0000 phys=0.0000) | S_F1=0.252(ap=0.273) P_F1=0.204(ap=0.216) ICS_F1=0.148(ap=0.080) score=0.2163  lr=7.50e-05 318s
+Ep  54 [Phase2:Task+KD  ] T= 1.7 loss=0.0002 (task=0.0002 kd=0.0001 feat=0.0000 phys=0.0000) | S_F1=0.253(ap=0.274) P_F1=0.205(ap=0.217) ICS_F1=0.148(ap=0.080) score=0.2168 * lr=7.50e-05 316s
+Ep  55 [Phase2:Task+KD  ] T= 1.7 loss=0.0002 (task=0.0002 kd=0.0001 feat=0.0000 phys=0.0000) | S_F1=0.252(ap=0.274) P_F1=0.204(ap=0.217) ICS_F1=0.148(ap=0.080) score=0.2169 * lr=7.50e-05 316s
+Ep  56 [Phase2:Task+KD  ] T= 1.7 loss=0.0002 (task=0.0002 kd=0.0001 feat=0.0000 phys=0.0000) | S_F1=0.252(ap=0.274) P_F1=0.204(ap=0.217) ICS_F1=0.148(ap=0.080) score=0.2166  lr=7.50e-05 331s
+Ep  57 [Phase2:Task+KD  ] T= 1.7 loss=0.0002 (task=0.0002 kd=0.0001 feat=0.0000 phys=0.0000) | S_F1=0.253(ap=0.273) P_F1=0.205(ap=0.217) ICS_F1=0.148(ap=0.080) score=0.2172 * lr=7.50e-05 307s
+Ep  58 [Phase2:Task+KD  ] T= 1.6 loss=0.0002 (task=0.0002 kd=0.0001 feat=0.0000 phys=0.0000) | S_F1=0.252(ap=0.273) P_F1=0.205(ap=0.217) ICS_F1=0.148(ap=0.080) score=0.2167  lr=7.50e-05 320s
+
+  [Phase transition: Phase2:Task+KD -> Phase3:Task+KD+Phys] Resetting patience, LR, and applying warmup.
+Ep  59 [Phase3:Task+KD+Phys] T= 1.6 loss=0.0002 (task=0.0002 kd=0.0001 feat=0.0000 phys=0.0000) | S_F1=0.253(ap=0.273) P_F1=0.204(ap=0.217) ICS_F1=0.148(ap=0.080) score=0.2165  lr=1.20e-04 303s
+Ep  60 [Phase3:Task+KD+Phys] T= 1.6 loss=0.0011 (task=0.0005 kd=0.0002 feat=0.0000 phys=0.0004) | S_F1=0.154(ap=0.088) P_F1=0.149(ap=0.164) ICS_F1=0.148(ap=0.081) score=0.1642  lr=2.10e-04 326s
+Ep  61 [Phase3:Task+KD+Phys] T= 1.6 loss=0.0011 (task=0.0005 kd=0.0002 feat=0.0000 phys=0.0004) | S_F1=0.155(ap=0.083) P_F1=0.173(ap=0.180) ICS_F1=0.148(ap=0.080) score=0.1796  lr=3.00e-04 330s
+Ep  62 [Phase3:Task+KD+Phys] T= 1.5 loss=0.0012 (task=0.0005 kd=0.0002 feat=0.0000 phys=0.0004) | S_F1=0.156(ap=0.085) P_F1=0.185(ap=0.192) ICS_F1=0.148(ap=0.081) score=0.1920  lr=3.00e-04 339s
+Ep  63 [Phase3:Task+KD+Phys] T= 1.5 loss=0.0011 (task=0.0005 kd=0.0002 feat=0.0000 phys=0.0004) | S_F1=0.156(ap=0.090) P_F1=0.194(ap=0.199) ICS_F1=0.148(ap=0.081) score=0.1993  lr=3.00e-04 333s
+Ep  64 [Phase3:Task+KD+Phys] T= 1.5 loss=0.0011 (task=0.0005 kd=0.0002 feat=0.0000 phys=0.0004) | S_F1=0.156(ap=0.083) P_F1=0.193(ap=0.198) ICS_F1=0.148(ap=0.082) score=0.1981  lr=3.00e-04 331s
+Ep  65 [Phase3:Task+KD+Phys] T= 1.5 loss=0.0011 (task=0.0005 kd=0.0002 feat=0.0000 phys=0.0004) | S_F1=0.150(ap=0.080) P_F1=0.190(ap=0.195) ICS_F1=0.148(ap=0.082) score=0.1950  lr=3.00e-04 328s
+Ep  66 [Phase3:Task+KD+Phys] T= 1.5 loss=0.0010 (task=0.0005 kd=0.0002 feat=0.0000 phys=0.0004) | S_F1=0.153(ap=0.079) P_F1=0.190(ap=0.196) ICS_F1=0.148(ap=0.082) score=0.1962  lr=3.00e-04 332s
+Ep  67 [Phase3:Task+KD+Phys] T= 1.4 loss=0.0011 (task=0.0005 kd=0.0002 feat=0.0000 phys=0.0004) | S_F1=0.153(ap=0.080) P_F1=0.196(ap=0.200) ICS_F1=0.148(ap=0.082) score=0.1997  lr=3.00e-04 339s
+Ep  68 [Phase3:Task+KD+Phys] T= 1.4 loss=0.0010 (task=0.0005 kd=0.0002 feat=0.0000 phys=0.0004) | S_F1=0.155(ap=0.079) P_F1=0.191(ap=0.197) ICS_F1=0.148(ap=0.080) score=0.1966  lr=3.00e-04 328s
+Ep  69 [Phase3:Task+KD+Phys] T= 1.4 loss=0.0010 (task=0.0005 kd=0.0002 feat=0.0000 phys=0.0004) | S_F1=0.154(ap=0.080) P_F1=0.193(ap=0.200) ICS_F1=0.148(ap=0.079) score=0.1999  lr=3.00e-04 316s
+Ep  70 [Phase3:Task+KD+Phys] T= 1.4 loss=0.0010 (task=0.0004 kd=0.0002 feat=0.0000 phys=0.0003) | S_F1=0.154(ap=0.079) P_F1=0.195(ap=0.202) ICS_F1=0.148(ap=0.079) score=0.2017  lr=3.00e-04 339s
+Ep  71 [Phase3:Task+KD+Phys] T= 1.4 loss=0.0010 (task=0.0004 kd=0.0002 feat=0.0000 phys=0.0003) | S_F1=0.155(ap=0.084) P_F1=0.191(ap=0.194) ICS_F1=0.148(ap=0.079) score=0.1939  lr=3.00e-04 315s
+Ep  72 [Phase3:Task+KD+Phys] T= 1.4 loss=0.0010 (task=0.0005 kd=0.0002 feat=0.0000 phys=0.0004) | S_F1=0.155(ap=0.079) P_F1=0.188(ap=0.198) ICS_F1=0.148(ap=0.079) score=0.1978  lr=3.00e-04 326s
+Ep  73 [Phase3:Task+KD+Phys] T= 1.3 loss=0.0010 (task=0.0004 kd=0.0002 feat=0.0000 phys=0.0003) | S_F1=0.155(ap=0.077) P_F1=0.186(ap=0.196) ICS_F1=0.148(ap=0.079) score=0.1965  lr=3.00e-04 334s
+Ep  74 [Phase3:Task+KD+Phys] T= 1.3 loss=0.0010 (task=0.0004 kd=0.0002 feat=0.0000 phys=0.0003) | S_F1=0.154(ap=0.077) P_F1=0.198(ap=0.198) ICS_F1=0.148(ap=0.079) score=0.1979  lr=3.00e-04 322s
+Ep  75 [Phase3:Task+KD+Phys] T= 1.3 loss=0.0010 (task=0.0004 kd=0.0002 feat=0.0000 phys=0.0003) | S_F1=0.154(ap=0.078) P_F1=0.200(ap=0.203) ICS_F1=0.148(ap=0.078) score=0.2028  lr=3.00e-04 332s
+Ep  76 [Phase3:Task+KD+Phys] T= 1.3 loss=0.0010 (task=0.0004 kd=0.0002 feat=0.0000 phys=0.0003) | S_F1=0.156(ap=0.085) P_F1=0.191(ap=0.198) ICS_F1=0.148(ap=0.078) score=0.1977  lr=3.00e-04 320s
+Ep  77 [Phase3:Task+KD+Phys] T= 1.3 loss=0.0010 (task=0.0004 kd=0.0002 feat=0.0000 phys=0.0003) | S_F1=0.154(ap=0.077) P_F1=0.187(ap=0.195) ICS_F1=0.148(ap=0.078) score=0.1954  lr=3.00e-04 324s
+Ep  78 [Phase3:Task+KD+Phys] T= 1.3 loss=0.0010 (task=0.0004 kd=0.0002 feat=0.0000 phys=0.0003) | S_F1=0.154(ap=0.076) P_F1=0.189(ap=0.197) ICS_F1=0.148(ap=0.078) score=0.1973  lr=3.00e-04 331s
+Ep  79 [Phase3:Task+KD+Phys] T= 1.3 loss=0.0010 (task=0.0004 kd=0.0002 feat=0.0000 phys=0.0003) | S_F1=0.154(ap=0.077) P_F1=0.194(ap=0.199) ICS_F1=0.148(ap=0.078) score=0.1988  lr=3.00e-04 329s
+Ep  80 [Phase3:Task+KD+Phys] T= 1.3 loss=0.0010 (task=0.0004 kd=0.0002 feat=0.0000 phys=0.0003) | S_F1=0.154(ap=0.077) P_F1=0.187(ap=0.197) ICS_F1=0.148(ap=0.077) score=0.1970  lr=3.00e-04 339s
+Ep  81 [Phase3:Task+KD+Phys] T= 1.2 loss=0.0009 (task=0.0004 kd=0.0002 feat=0.0000 phys=0.0003) | S_F1=0.154(ap=0.077) P_F1=0.195(ap=0.203) ICS_F1=0.148(ap=0.077) score=0.2027  lr=1.50e-04 336s
+Ep  82 [Phase3:Task+KD+Phys] T= 1.2 loss=0.0009 (task=0.0004 kd=0.0002 feat=0.0000 phys=0.0003) | S_F1=0.154(ap=0.075) P_F1=0.189(ap=0.198) ICS_F1=0.148(ap=0.077) score=0.1980  lr=1.50e-04 329s
+Ep  83 [Phase3:Task+KD+Phys] T= 1.2 loss=0.0009 (task=0.0004 kd=0.0002 feat=0.0000 phys=0.0003) | S_F1=0.155(ap=0.078) P_F1=0.189(ap=0.202) ICS_F1=0.148(ap=0.077) score=0.2020  lr=1.50e-04 320s
+Ep  84 [Phase3:Task+KD+Phys] T= 1.2 loss=0.0009 (task=0.0004 kd=0.0002 feat=0.0000 phys=0.0003) | S_F1=0.154(ap=0.075) P_F1=0.189(ap=0.199) ICS_F1=0.148(ap=0.077) score=0.1988  lr=1.50e-04 338s
+Ep  85 [Phase3:Task+KD+Phys] T= 1.2 loss=0.0009 (task=0.0004 kd=0.0002 feat=0.0000 phys=0.0003) | S_F1=0.154(ap=0.077) P_F1=0.192(ap=0.200) ICS_F1=0.148(ap=0.077) score=0.1995  lr=1.50e-04 322s
+Ep  86 [Phase3:Task+KD+Phys] T= 1.2 loss=0.0009 (task=0.0004 kd=0.0002 feat=0.0000 phys=0.0003) | S_F1=0.153(ap=0.077) P_F1=0.193(ap=0.200) ICS_F1=0.148(ap=0.077) score=0.2004  lr=1.50e-04 341s
+Ep  87 [Phase3:Task+KD+Phys] T= 1.2 loss=0.0009 (task=0.0004 kd=0.0002 feat=0.0000 phys=0.0003) | S_F1=0.152(ap=0.078) P_F1=0.189(ap=0.201) ICS_F1=0.148(ap=0.077) score=0.2005  lr=7.50e-05 314s
+Ep  88 [Phase3:Task+KD+Phys] T= 1.2 loss=0.0009 (task=0.0004 kd=0.0002 feat=0.0000 phys=0.0003) | S_F1=0.153(ap=0.076) P_F1=0.191(ap=0.200) ICS_F1=0.148(ap=0.077) score=0.2003  lr=7.50e-05 332s
+
+Early stopping at epoch 88 (patience=30)
+
+Training complete. Best composite score: 0.2172
+Checkpoints saved to ./checkpoints_pikd/
